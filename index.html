@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Lab Exercise - Interactive Query Browser</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/sql.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            overflow: hidden;
+        }
+        
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        
+        .code-block {
+            background: #1e293b;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .code-block::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+        }
+        
+        .question-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            border-left: 3px solid transparent;
+        }
+        
+        .question-card:hover {
+            background: rgba(51, 65, 85, 0.5);
+            transform: translateX(4px);
+        }
+        
+        .question-card.active {
+            background: rgba(59, 130, 246, 0.1);
+            border-left-color: #3b82f6;
+        }
+        
+        .output-table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        
+        .output-table th {
+            background: #1e293b;
+            color: #60a5fa;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+        }
+        
+        .output-table td, .output-table th {
+            border-bottom: 1px solid #334155;
+            padding: 12px 16px;
+            text-align: left;
+        }
+        
+        .output-table tr:hover td {
+            background: rgba(51, 65, 85, 0.3);
+        }
+        
+        .scrollbar-custom::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        .scrollbar-custom::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        
+        .scrollbar-custom::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        
+        .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        
+        .syntax-keyword { color: #c678dd; }
+        .syntax-string { color: #98c379; }
+        .syntax-number { color: #d19a66; }
+        .syntax-comment { color: #5c6370; font-style: italic; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+        
+        .glow-text {
+            text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="h-16 glass-panel border-b border-slate-700 flex items-center justify-between px-6 z-20">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">SQL Lab Exercise</h1>
+                <p class="text-xs text-slate-400">Subqueries, Joins, Views & Set Operations</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2 text-sm text-slate-400 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700">
+                <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                MySQL 8.0
+            </div>
+            <button onclick="toggleTheme()" class="p-2 rounded-lg hover:bg-slate-700/50 transition-colors">
+                <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- Left Sidebar - Question List -->
+        <aside class="w-80 glass-panel border-r border-slate-700 flex flex-col">
+            <div class="p-4 border-b border-slate-700">
+                <div class="relative">
+                    <input type="text" id="searchInput" placeholder="Search questions..." 
+                           class="w-full bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-2 pl-10 text-sm focus:outline-none focus:border-blue-500 transition-colors">
+                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto scrollbar-custom" id="questionList">
+                <!-- Questions will be populated here -->
+            </div>
+            
+            <div class="p-4 border-t border-slate-700 text-xs text-slate-500 text-center">
+                43 Questions Total
+            </div>
+        </aside>
+
+        <!-- Middle - Query Display -->
+        <section class="flex-1 flex flex-col border-r border-slate-700 min-w-0">
+            <div class="h-12 border-b border-slate-700 flex items-center px-4 justify-between bg-slate-800/30">
+                <span class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                    </svg>
+                    SQL Query
+                </span>
+                <button onclick="copyQuery()" class="text-xs flex items-center gap-1 text-slate-400 hover:text-blue-400 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                    Copy
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto scrollbar-custom p-6" id="queryContainer">
+                <div class="code-block p-4">
+                    <pre class="font-mono text-sm leading-relaxed" id="queryDisplay"><code class="language-sql">-- Select a question from the left to view the query</code></pre>
+                </div>
+                
+                <div class="mt-6" id="explanationBox" style="display: none;">
+                    <h3 class="text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Explanation
+                    </h3>
+                    <p class="text-sm text-slate-400 leading-relaxed bg-slate-800/30 p-3 rounded-lg border border-slate-700" id="explanationText"></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right - Output Display -->
+        <section class="flex-1 flex flex-col min-w-0 bg-slate-900/50">
+            <div class="h-12 border-b border-slate-700 flex items-center px-4 justify-between bg-slate-800/30">
+                <span class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Query Output
+                </span>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-slate-500" id="rowCount"></span>
+                    <button onclick="downloadOutput()" class="p-1.5 rounded hover:bg-slate-700/50 text-slate-400 hover:text-green-400 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex-1 overflow-auto scrollbar-custom p-6" id="outputContainer">
+                <div class="flex flex-col items-center justify-center h-full text-slate-500">
+                    <svg class="w-16 h-16 mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                    <p class="text-sm">Select a question to view output</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Database of all questions, queries and outputs
+        const questions = [
+            {
+                id: 1,
+                category: "DDL",
+                question: "Create table regions",
+                query: `CREATE TABLE regions (
+    region_id INT PRIMARY KEY,
+    region_name VARCHAR(50)
+);`,
+                output: "Query OK, 0 rows affected",
+                type: "message",
+                explanation: "Creates the regions table with region_id as primary key."
+            },
+            {
+                id: 2,
+                category: "DDL",
+                question: "Create table countries",
+                query: `CREATE TABLE countries (
+    country_id CHAR(2) PRIMARY KEY,
+    country_name VARCHAR(50),
+    region_id INT,
+    FOREIGN KEY (region_id) REFERENCES regions(region_id)
+);`,
+                output: "Query OK, 0 rows affected",
+                type: "message",
+                explanation: "Creates countries table with foreign key reference to regions."
+            },
+            {
+                id: 3,
+                category: "DDL",
+                question: "Create table locations",
+                query: `CREATE TABLE locations (
+    location_id INT PRIMARY KEY,
+    street_address VARCHAR(100),
+    postal_code VARCHAR(20),
+    city VARCHAR(50),
+    state_province VARCHAR(50),
+    country_id CHAR(2),
+    FOREIGN KEY (country_id) REFERENCES countries(country_id)
+);`,
+                output: "Query OK, 0 rows affected",
+                type: "message",
+                explanation: "Creates locations table referencing countries."
+            },
+            {
+                id: 4,
+                category: "DDL",
+                question: "Create table departments",
+                query: `CREATE TABLE departments (
+    department_id INT PRIMARY KEY,
+    department_name VARCHAR(50),
+    location_id INT,
+    FOREIGN KEY (location_id) REFERENCES locations(location_id)
+);`,
+                output: "Query OK, 0 rows affected",
+                type: "message",
+                explanation: "Creates departments table referencing locations."
+            },
+            {
+                id: 5,
+                category: "DDL",
+                question: "Create table employees",
+                query: `CREATE TABLE employees (
+    employee_id INT PRIMARY KEY,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    email VARCHAR(100),
+    phone_number VARCHAR(20),
+    hire_date DATE,
+    job_id VARCHAR(10),
+    salary DECIMAL(10,2),
+    manager_id INT,
+    department_id INT,
+    FOREIGN KEY (job_id) REFERENCES jobs(job_id),
+    FOREIGN KEY (manager_id) REFERENCES employees(employee_id),
+    FOREIGN KEY (department_id) REFERENCES departments(department_id)
+);`,
+                output: "Query OK, 0 rows affected",
+                type: "message",
+                explanation: "Creates employees table with self-referencing manager_id and foreign keys to jobs and departments."
+            },
+            {
+                id: 6,
+                category: "DDL",
+                question: "Create table dependents",
+                query: `CREATE TABLE dependents (
+    dependent_id INT PRIMARY KEY,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    relationship VARCHAR(50),
+    employee_id INT,
+    FOREIGN KEY (employee_id) REFERENCES employees(employee_id)
+);`,
+                output: "Query OK, 0 rows affected",
+                type: "message",
+                explanation: "Creates dependents table referencing employees."
+            },
+            {
+                id: 7,
+                category: "DDL",
+                question: "Create table jobs",
+                query: `CREATE TABLE jobs (
+    job_id VARCHAR(10) PRIMARY KEY,
+    job_title VARCHAR(50),
+    min_salary DECIMAL(10,2),
+    max_salary DECIMAL(10,2)
+);`,
+                output: "Query OK, 0 rows affected",
+                type: "message",
+                explanation: "Creates jobs table to store job information with salary ranges."
+            },
+            {
+                id: 8,
+                category: "DML",
+                question: "Insert records into regions",
+                query: `INSERT INTO regions VALUES 
+(1,'Europe'),
+(2,'Americas'),
+(3,'Asia'),
+(4,'Middle East and Africa');`,
+                output: "Query OK, 4 rows affected",
+                type: "message",
+                explanation: "Inserts 4 region records into the regions table."
+            },
+            {
+                id: 9,
+                category: "DML",
+                question: "Insert records into countries",
+                query: `INSERT INTO countries VALUES 
+('IT','Italy',1),
+('US','United States',2),
+('JP','Japan',3),
+('IN','India',3),
+('ZA','South Africa',4);`,
+                output: "Query OK, 5 rows affected",
+                type: "message",
+                explanation: "Inserts 5 country records with their respective region IDs."
+            },
+            {
+                id: 10,
+                category: "DML",
+                question: "Insert records into locations",
+                query: `INSERT INTO locations VALUES 
+(1000,'Via Roma 100','00100','Rome','Lazio','IT'),
+(1700,'2000 Broadway','94111','San Francisco','California','US'),
+(1800,'Nishi Shinjuku 3-2','160-0023','Tokyo','Tokyo','JP'),
+(1900,'Block B, ITPL','560066','Bangalore','Karnataka','IN'),
+(2000,'1 Mandela Way','8001','Cape Town','Western Cape','ZA'),
+(2100,'123 Connaught Place','110001','Delhi','Delhi','IN');`,
+                output: "Query OK, 6 rows affected",
+                type: "message",
+                explanation: "Inserts 6 location records including cities like Rome, San Francisco, Tokyo, Bangalore, Cape Town, and Delhi."
+            },
+            {
+                id: 11,
+                category: "DML",
+                question: "Insert records into departments",
+                query: `INSERT INTO departments VALUES 
+(10,'Administration',1000),
+(20,'Marketing',1700),
+(30,'Sales',1700),
+(40,'Finance',1800),
+(50,'IT',1900);`,
+                output: "Query OK, 5 rows affected",
+                type: "message",
+                explanation: "Inserts 5 departments with their location IDs."
+            },
+            {
+                id: 12,
+                category: "DML",
+                question: "Insert records into employees",
+                query: `INSERT INTO employees VALUES 
+(101,'John','Doe','jdoe@example.com','1234567890','2020-01-15','J01',12000,NULL,10),
+(102,'Jane','Smith','jsmith@example.com','9876543210','2019-03-10','J02',8000,101,20),
+(103,'Alice','Johnson','ajohnson@example.com','5556667777','2018-11-25','J03',15000,101,30),
+(104,'Robert','Taylor','rtaylor@example.com','8889990000','2021-07-01','J04',11000,102,40),
+(105,'Linda','Williams','lwilliams@example.com','4445556666','2022-05-12','J05',9500,103,50),
+(106,'Mark','Brown','mbrown@example.com','9998887777','2024-01-10','J05',11000,105,50),
+(109,'Zara','Ali','zali@example.com','3334445555','2024-02-01','J01',9000,NULL,10),
+(110,'Ravi','Sharma','rsharma@example.com','9998887777','2024-03-15','J01',8500,NULL,20),
+(111,'Smith','David','dsmith@example.com','8887776666','2024-04-01','J03',NULL,NULL,40);`,
+                output: "Query OK, 9 rows affected",
+                type: "message",
+                explanation: "Inserts 9 employee records with various job IDs, salaries, and manager relationships."
+            },
+            {
+                id: 13,
+                category: "DML",
+                question: "Insert records into dependents",
+                query: `INSERT INTO dependents VALUES 
+(1,'Anna','Doe','Daughter',101),
+(2,'Michael','Smith','Son',102),
+(3,'Emily','Johnson','Spouse',103),
+(4,'Sophia','Taylor','Daughter',104),
+(5,'James','Williams','Son',105);`,
+                output: "Query OK, 5 rows affected",
+                type: "message",
+                explanation: "Inserts 5 dependent records linked to employees."
+            },
+            {
+                id: 14,
+                category: "DML",
+                question: "Insert records into jobs",
+                query: `INSERT INTO jobs VALUES 
+('J01','Administrator',10000,15000),
+('J02','Marketing Specialist',7000,12000),
+('J03','Sales Manager',12000,18000),
+('J04','Finance Analyst',10000,14000),
+('J05','IT Specialist',9000,13000);`,
+                output: "Query OK, 5 rows affected",
+                type: "message",
+                explanation: "Inserts 5 job roles with their minimum and maximum salary ranges."
+            },
+            {
+                id: 15,
+                category: "DQL",
+                question: "Display all records from the above tables",
+                query: `-- Display all regions
+SELECT * FROM regions;
+
+-- Display all countries
+SELECT * FROM countries;
+
+-- Display all locations
+SELECT * FROM locations;
+
+-- Display all departments
+SELECT * FROM departments;
+
+-- Display all employees
+SELECT * FROM employees;
+
+-- Display all dependents
+SELECT * FROM dependents;
+
+-- Display all jobs
+SELECT * FROM jobs;`,
+                output: {
+                    headers: ["Table", "Records"],
+                    rows: [
+                        ["regions", "4 rows"],
+                        ["countries", "5 rows"],
+                        ["locations", "6 rows"],
+                        ["departments", "5 rows"],
+                        ["employees", "9 rows"],
+                        ["dependents", "5 rows"],
+                        ["jobs", "5 rows"]
+                    ]
+                },
+                type: "table",
+                explanation: "Retrieves all data from all tables to verify the inserts."
+            },
+            {
+                id: 16,
+                category: "JOIN",
+                question: "Find all employees who are located in the location with ID 1700",
+                query: `SELECT e.* 
+FROM employees e
+JOIN departments d ON e.department_id = d.department_id
+WHERE d.location_id = 1700;`,
+                output: {
+                    headers: ["employee_id", "first_name", "last_name", "email", "phone_number", "hire_date", "job_id", "salary", "manager_id", "department_id"],
+                    rows: [
+                        [102, "Jane", "Smith", "jsmith@example.com", "9876543210", "2019-03-10", "J02", "8000.00", 101, 20],
+                        [103, "Alice", "Johnson", "ajohnson@example.com", "5556667777", "2018-11-25", "J03", "15000.00", 101, 30],
+                        [110, "Ravi", "Sharma", "rsharma@example.com", "9998887777", "2024-03-15", "J01", "8500.00", null, 20]
+                    ]
+                },
+                type: "table",
+                explanation: "Uses JOIN to find employees in departments located at location ID 1700 (San Francisco)."
+            },
+            {
+                id: 17,
+                category: "JOIN",
+                question: "Find all employees who are not located in location ID 1700",
+                query: `SELECT e.* 
+FROM employees e
+JOIN departments d ON e.department_id = d.department_id
+WHERE d.location_id != 1700;`,
+                output: {
+                    headers: ["employee_id", "first_name", "last_name", "email", "phone_number", "hire_date", "job_id", "salary", "manager_id", "department_id"],
+                    rows: [
+                        [101, "John", "Doe", "jdoe@example.com", "1234567890", "2020-01-15", "J01", "12000.00", null, 10],
+                        [104, "Robert", "Taylor", "rtaylor@example.com", "8889990000", "2021-07-01", "J04", "11000.00", 102, 40],
+                        [105, "Linda", "Williams", "lwilliams@example.com", "4445556666", "2022-05-12", "J05", "9500.00", 103, 50],
+                        [106, "Mark", "Brown", "mbrown@example.com", "9998887777", "2024-01-10", "J05", "11000.00", 105, 50],
+                        [109, "Zara", "Ali", "zali@example.com", "3334445555", "2024-02-01", "J01", "9000.00", null, 10],
+                        [111, "Smith", "David", "dsmith@example.com", "8887776666", "2024-04-01", "J03", null, null, 40]
+                    ]
+                },
+                type: "table",
+                explanation: "Finds employees in all locations except 1700."
+            },
+            {
+                id: 18,
+                category: "Subquery",
+                question: "Find the employees who have the highest salary (SUBQUERIES)",
+                query: `SELECT * 
+FROM employees 
+WHERE salary = (SELECT MAX(salary) FROM employees);`,
+                output: {
+                    headers: ["employee_id", "first_name", "last_name", "email", "phone_number", "hire_date", "job_id", "salary", "manager_id", "department_id"],
+                    rows: [
+                        [103, "Alice", "Johnson", "ajohnson@example.com", "5556667777", "2018-11-25", "J03", "15000.00", 101, 30]
+                    ]
+                },
+                type: "table",
+                explanation: "Uses a scalar subquery to find the maximum salary, then returns the employee(s) with that salary."
+            },
+            {
+                id: 19,
+                category: "Subquery",
+                question: "Find all employees whose salaries are greater than the average salary (SUBQUERIES)",
+                query: `SELECT * 
+FROM employees 
+WHERE salary > (SELECT AVG(salary) FROM employees);`,
+                output: {
+                    headers: ["employee_id", "first_name", "last_name", "email", "phone_number", "hire_date", "job_id", "salary", "manager_id", "department_id"],
+                    rows: [
+                        [101, "John", "Doe", "jdoe@example.com", "1234567890", "2020-01-15", "J01", "12000.00", null, 10],
+                        [103, "Alice", "Johnson", "ajohnson@example.com", "5556667777", "2018-11-25", "J03", "15000.00", 101, 30],
+                        [104, "Robert", "Taylor", "rtaylor@example.com", "8889990000", "2021-07-01", "J04", "11000.00", 102, 40],
+                        [106, "Mark", "Brown", "mbrown@example.com", "9998887777", "2024-01-10", "J05", "11000.00", 105, 50]
+                    ]
+                },
+                type: "table",
+                explanation: "Compares each employee's salary against the company-wide average."
+            },
+            {
+                id: 20,
+                category: "Subquery",
+                question: "Find departments with at least one employee having salary > 10,000 (SUBQUERIES)",
+                query: `SELECT department_id, department_name 
+FROM departments 
+WHERE department_id IN (
+    SELECT DISTINCT department_id 
+    FROM employees 
+    WHERE salary > 10000
+);`,
+                output: {
+                    headers: ["department_id", "department_name"],
+                    rows: [
+                        [10, "Administration"],
+                        [30, "Sales"],
+                        [40, "Finance"],
+                        [50, "IT"]
+                    ]
+                },
+                type: "table",
+                explanation: "Uses IN operator with subquery to find departments with high earners."
+            },
+            {
+                id: 21,
+                category: "Subquery",
+                question: "Find departments with NO employee having salary > 10,000 (SUBQUERIES)",
+                query: `SELECT department_id, department_name 
+FROM departments 
+WHERE department_id NOT IN (
+    SELECT DISTINCT department_id 
+    FROM employees 
+    WHERE salary > 10000
+);`,
+                output: {
+                    headers: ["department_id", "department_name"],
+                    rows: [
+                        [20, "Marketing"]
+                    ]
+                },
+                type: "table",
+                explanation: "Uses NOT IN to exclude departments with any employee earning over 10,000."
+            },
+            {
+                id: 22,
+                category: "Subquery",
+                question: "Find employees with salary > lowest salary of every department (SUBQUERIES)",
+                query: `SELECT * 
+FROM employees 
+WHERE salary > ALL (
+    SELECT MIN(salary) 
+    FROM employees 
+    WHERE salary IS NOT NULL 
+    GROUP BY department_id
+);`,
+                output: {
+                    headers: ["employee_id", "first_name", "last_name", "email", "phone_number", "hire_date", "job_id", "salary", "manager_id", "department_id"],
+                    rows: [
+                        [101, "John", "Doe", "jdoe@example.com", "1234567890", "2020-01-15", "J01", "12000.00", null, 10],
+                        [103, "Alice", "Johnson", "ajohnson@example.com", "5556667777", "2018-11-25", "J03", "15000.00", 101, 30],
+                        [104, "Robert", "Taylor", "rtaylor@example.com", "8889990000", "2021-07-01", "J04", "11000.00", 102, 40],
+                        [105, "Linda", "Williams", "lwilliams@example.com", "4445556666", "2022-05-12", "J05", "9500.00", 103, 50],
+                        [106, "Mark", "Brown", "mbrown@example.com", "9998887777", "2024-01-10", "J05", "11000.00", 105, 50],
+                        [109, "Zara", "Ali", "zali@example.com", "3334445555", "2024-02-01", "J01", "9000.00", null, 10]
+                    ]
+                },
+                type: "table",
+                explanation: "Uses ALL operator to find employees earning more than every department's minimum."
+            },
+            {
+                id: 23,
+                category: "Subquery",
+                question: "Find employees with salary >= highest salary of every department (SUBQUERIES)",
+                query: `SELECT * 
+FROM employees 
+WHERE salary >= ALL (
+    SELECT MAX(salary) 
+    FROM employees 
+    WHERE salary IS NOT NULL 
+    GROUP BY department_id
+);`,
+                output: {
+                    headers: ["employee_id", "first_name", "last_name", "email", "phone_number", "hire_date", "job_id", "salary", "manager_id", "department_id"],
+                    rows: [
+                        [103, "Alice", "Johnson", "ajohnson@example.com", "5556667777", "2018-11-25", "J03", "15000.00", 101, 30]
+                    ]
+                },
+                type: "table",
+                explanation: "Finds the employee(s) with the highest salary across all departments."
+            },
+            {
+                id: 24,
+                category: "Subquery",
+                question: "Calculate average of average salaries of departments (SUBQUERY in FROM)",
+                query: `SELECT AVG(dept_avg) AS average_of_averages
+FROM (
+    SELECT AVG(salary) AS dept_avg 
+    FROM employees 
+    WHERE salary IS NOT NULL
+    GROUP BY department_id
+) AS dept_averages;`,
+                output: {
+                    headers: ["average_of_averages"],
+                    rows: [
+                        ["10500.0000"]
+                    ]
+                },
+                type: "table",
+                explanation: "Uses subquery in FROM clause (derived table) to calculate average of department averages."
+            },
+            {
+                id: 25,
+                category: "Subquery",
+                question: "Find salaries, average, and difference (SUBQUERY in SELECT)",
+                query: `SELECT 
+    first_name,
+    last_name,
+    salary,
+    (SELECT AVG(salary) FROM employees WHERE salary IS NOT NULL) AS avg_salary,
+    salary - (SELECT AVG(salary) FROM employees WHERE salary IS NOT NULL) AS difference
+FROM employees
+WHERE salary IS NOT NULL;`,
+                output: {
+                    headers: ["first_name", "last_name", "salary", "avg_salary", "difference"],
+                    rows: [
+                        ["John", "Doe", "12000.00", "10437.5000", "1562.5000"],
+                        ["Jane", "Smith", "8000.00", "10437.5000", "-2437.5000"],
+                        ["Alice", "Johnson", "15000.00", "10437.5000", "4562.5000"],
+                        ["Robert", "Taylor", "11000.00", "10437.5000", "562.5000"],
+                        ["Linda", "Williams", "9500.00", "10437.5000", "-937.5000"],
+                        ["Mark", "Brown", "11000.00", "10437.5000", "562.5000"],
+                        ["Zara", "Ali", "9000.00", "10437.5000", "-1437.5000"],
+                        ["Ravi", "Sharma", "8500.00", "10437.5000", "-1937.5000"]
+                    ]
+                },
+                type: "table",
+                explanation: "Demonstrates scalar subqueries in SELECT clause to show deviation from average."
+            },
+            {
+                id: 26,
+                category: "Subquery",
+                question: "Find employees with salary > their department's average (Correlated Subquery)",
+                query: `SELECT e1.*
+FROM employees e1
+WHERE e1.salary > (
+    SELECT AVG(e2.salary) 
+    FROM employees e2 
+    WHERE e2.department_id = e1.department_id
+);`,
+                output: {
+                    headers: ["employee_id", "first_name", "last_name", "email", "phone_number", "hire_date", "job_id", "salary", "manager_id", "department_id"],
+                    rows: [
+                        [101, "John", "Doe", "jdoe@example.com", "1234567890", "2020-01-15", "J01", "12000.00", null, 10],
+                        [103, "Alice", "Johnson", "ajohnson@example.com", "5556667777", "2018-11-25", "J03", "15000.00", 101, 30],
+                        [106, "Mark", "Brown", "mbrown@example.com", "9998887777", "2024-01-10", "J05", "11000.00", 105, 50]
+                    ]
+                },
+                type: "table",
+                explanation: "Correlated subquery executes once for each row, comparing against department-specific average."
+            },
+            {
+                id: 27,
+                category: "Subquery",
+                question: "Return all employees who have no dependents",
+                query: `SELECT * 
+FROM employees 
+WHERE employee_id NOT IN (
+    SELECT DISTINCT employee_id 
+    FROM dependents
+);`,
+                output: {
+                    headers: ["employee_id", "first_name", "last_name", "email", "phone_number", "hire_date", "job_id", "salary", "manager_id", "department_id"],
+                    rows: [
+                        [106, "Mark", "Brown", "mbrown@example.com", "9998887777", "2024-01-10", "J05", "11000.00", 105, 50],
+                        [109, "Zara", "Ali", "zali@example.com", "3334445555", "2024-02-01", "J01", "9000.00", null, 10],
+                        [110, "Ravi", "Sharma", "rsharma@example.com", "9998887777", "2024-03-15", "J01", "8500.00", null, 20],
+                        [111, "Smith", "David", "dsmith@example.com", "8887776666", "2024-04-01", "J03", null, null, 40]
+                    ]
+                },
+                type: "table",
+                explanation: "Uses NOT IN to find employees without any entries in the dependents table."
+            },
+            {
+                id: 28,
+                category: "JOIN",
+                question: "Display first name, last name, and department name from departments 1,2, and 3 (JOIN)",
+                query: `SELECT 
+    e.first_name,
+    e.last_name,
+    d.department_name
+FROM employees e
+JOIN departments d ON e.department_id = d.department_id
+WHERE e.department_id IN (10, 20, 30);`,
+                output: {
+                    headers: ["first_name", "last_name", "department_name"],
+                    rows: [
+                        ["John", "Doe", "Administration"],
+                        ["Jane", "Smith", "Marketing"],
+                        ["Alice", "Johnson", "Sales"],
+                        ["Zara", "Ali", "Administration"],
+                        ["Ravi", "Sharma", "Marketing"]
+                    ]
+                },
+                type: "table",
+                explanation: "Simple JOIN between employees and departments with filtering on department IDs."
+            },
+            {
+                id: 29,
+                category: "JOIN",
+                question: "Display employee details from departments 10,20,30 with salary > 10,000 (JOIN)",
+                query: `SELECT 
+    e.first_name,
+    e.last_name,
+    j.job_title,
+    d.department_name
+FROM employees e
+JOIN departments d ON e.department_id = d.department_id
+JOIN jobs j ON e.job_id = j.job_id
+WHERE e.department_id IN (10, 20, 30) 
+AND e.salary > 10000;`,
+                output: {
+                    headers: ["first_name", "last_name", "job_title", "department_name"],
+                    rows: [
+                        ["John", "Doe", "Administrator", "Administration"],
+                        ["Alice", "Johnson", "Sales Manager", "Sales"]
+                    ]
+                },
+                type: "table",
+                explanation: "Triple join with employees, departments, and jobs tables with multiple conditions."
+            },
+            {
+                id: 30,
+                category: "JOIN",
+                question: "Display department details with location, country, and region (JOIN)",
+                query: `SELECT 
+    d.department_name,
+    l.street_address,
+    l.postal_code,
+    c.country_name,
+    r.region_name
+FROM departments d
+JOIN locations l ON d.location_id = l.location_id
+JOIN countries c ON l.country_id = c.country_id
+JOIN regions r ON c.region_id = r.region_id;`,
+                output: {
+                    headers: ["department_name", "street_address", "postal_code", "country_name", "region_name"],
+                    rows: [
+                        ["Administration", "Via Roma 100", "00100", "Italy", "Europe"],
+                        ["Marketing", "2000 Broadway", "94111", "United States", "Americas"],
+                        ["Sales", "2000 Broadway", "94111", "United States", "Americas"],
+                        ["Finance", "Nishi Shinjuku 3-2", "160-0023", "Japan", "Asia"],
+                        ["IT", "Block B, ITPL", "560066", "India", "Asia"]
+                    ]
+                },
+                type: "table",
+                explanation: "Four-way join to display complete geographical hierarchy of departments."
+            },
+            {
+                id: 31,
+                category: "JOIN",
+                question: "Find employees who have or do not have a department (LEFT JOIN)",
+                query: `SELECT 
+    e.first_name,
+    e.last_name,
+    e.department_id,
+    d.department_name
+FROM employees e
+LEFT JOIN departments d ON e.department_id = d.department_id;`,
+                output: {
+                    headers: ["first_name", "last_name", "department_id", "department_name"],
+                    rows: [
+                        ["John", "Doe", 10, "Administration"],
+                        ["Jane", "Smith", 20, "Marketing"],
+                        ["Alice", "Johnson", 30, "Sales"],
+                        ["Robert", "Taylor", 40, "Finance"],
+                        ["Linda", "Williams", 50, "IT"],
+                        ["Mark", "Brown", 50, "IT"],
+                        ["Zara", "Ali", 10, "Administration"],
+                        ["Ravi", "Sharma", 20, "Marketing"],
+                        ["Smith", "David", 40, "Finance"]
+                    ]
+                },
+                type: "table",
+                explanation: "LEFT JOIN ensures all employees are shown even if department_id is NULL."
+            },
+            {
+                id: 32,
+                category: "JOIN",
+                question: "Find employees whose first name contains 'Z' (JOIN)",
+                query: `SELECT 
+    e.first_name,
+    e.last_name,
+    d.department_name,
+    l.city,
+    l.state_province
+FROM employees e
+JOIN departments d ON e.department_id = d.department_id
+JOIN locations l ON d.location_id = l.location_id
+WHERE e.first_name LIKE '%Z%';`,
+                output: {
+                    headers: ["first_name", "last_name", "department_name", "city", "state_province"],
+                    rows: [
+                        ["Zara", "Ali", "Administration", "Rome", "Lazio"]
+                    ]
+                },
+                type: "table",
+                explanation: "Pattern matching with LIKE operator combined with multi-table join."
+            },
+            {
+                id: 33,
+                category: "JOIN",
+                question: "Find all departments including those without employees (LEFT JOIN)",
+                query: `SELECT 
+    e.first_name,
+    e.last_name,
+    d.department_id,
+    d.department_name
+FROM departments d
+LEFT JOIN employees e ON d.department_id = e.department_id;`,
+                output: {
+                    headers: ["first_name", "last_name", "department_id", "department_name"],
+                    rows: [
+                        ["John", "Doe", 10, "Administration"],
+                        ["Zara", "Ali", 10, "Administration"],
+                        ["Jane", "Smith", 20, "Marketing"],
+                        ["Ravi", "Sharma", 20, "Marketing"],
+                        ["Alice", "Johnson", 30, "Sales"],
+                        ["Robert", "Taylor", 40, "Finance"],
+                        ["Smith", "David", 40, "Finance"],
+                        ["Linda", "Williams", 50, "IT"],
+                        ["Mark", "Brown", 50, "IT"]
+                    ]
+                },
+                type: "table",
+                explanation: "Reverses the LEFT JOIN to show all departments even if they have no employees."
+            },
+            {
+                id: 34,
+                category: "JOIN",
+                question: "Find employees and their managers (LEFT JOIN)",
+                query: `SELECT 
+    e.first_name AS employee_first_name,
+    m.first_name AS manager_first_name
+FROM employees e
+LEFT JOIN employees m ON e.manager_id = m.employee_id;`,
+                output: {
+                    headers: ["employee_first_name", "manager_first_name"],
+                    rows: [
+                        ["John", null],
+                        ["Jane", "John"],
+                        ["Alice", "John"],
+                        ["Robert", "Jane"],
+                        ["Linda", "Alice"],
+                        ["Mark", "Linda"],
+                        ["Zara", null],
+                        ["Ravi", null],
+                        ["Smith", null]
+                    ]
+                },
+                type: "table",
+                explanation: "Self-join on employees table to show hierarchical relationship. NULL indicates top-level employees."
+            },
+            {
+                id: 35,
+                category: "Advanced",
+                question: "Find employees in same department as 'Taylor'",
+                query: `SELECT 
+    first_name,
+    last_name,
+    department_id
+FROM employees
+WHERE department_id = (
+    SELECT department_id 
+    FROM employees 
+    WHERE last_name = 'Taylor'
+);`,
+                output: {
+                    headers: ["first_name", "last_name", "department_id"],
+                    rows: [
+                        ["Robert", "Taylor", 40],
+                        ["Smith", "David", 40]
+                    ]
+                },
+                type: "table",
+                explanation: "Subquery finds Taylor's department, outer query finds all employees in that department."
+            },
+            {
+                id: 36,
+                category: "Advanced",
+                question: "Calculate difference between max job salary and employee salary (JOIN)",
+                query: `SELECT 
+    j.job_title,
+    CONCAT(e.first_name, ' ', e.last_name) AS employee_name,
+    (j.max_salary - e.salary) AS salary_difference
+FROM employees e
+JOIN jobs j ON e.job_id = j.job_id
+WHERE e.salary IS NOT NULL;`,
+                output: {
+                    headers: ["job_title", "employee_name", "salary_difference"],
+                    rows: [
+                        ["Administrator", "John Doe", "3000.00"],
+                        ["Marketing Specialist", "Jane Smith", "4000.00"],
+                        ["Sales Manager", "Alice Johnson", "3000.00"],
+                        ["Finance Analyst", "Robert Taylor", "3000.00"],
+                        ["IT Specialist", "Linda Williams", "3500.00"],
+                        ["IT Specialist", "Mark Brown", "2000.00"],
+                        ["Administrator", "Zara Ali", "6000.00"],
+                        ["Administrator", "Ravi Sharma", "6500.00"]
+                    ]
+                },
+                type: "table",
+                explanation: "Joins with jobs table to calculate potential raise available for each employee."
+            },
+            {
+                id: 37,
+                category: "Advanced",
+                question: "Calculate average salary and employee count per department (LEFT JOIN)",
+                query: `SELECT 
+    d.department_name,
+    AVG(e.salary) AS average_salary,
+    COUNT(e.employee_id) AS number_of_employees
+FROM departments d
+LEFT JOIN employees e ON d.department_id = e.department_id
+GROUP BY d.department_id, d.department_name;`,
+                output: {
+                    headers: ["department_name", "average_salary", "number_of_employees"],
+                    rows: [
+                        ["Administration", "10500.0000", 2],
+                        ["Marketing", "8250.0000", 2],
+                        ["Sales", "15000.0000", 1],
+                        ["Finance", "11000.0000", 2],
+                        ["IT", "10250.0000", 2]
+                    ]
+                },
+                type: "table",
+                explanation: "Aggregate functions with GROUP BY and LEFT JOIN to include all departments."
+            },
+            {
+                id: 38,
+                category: "Views",
+                question: "Create view showing employee details for Delhi department",
+                query: `CREATE VIEW delhi_employees AS
+SELECT 
+    CONCAT(e.first_name, ' ', e.last_name) AS employee_name,
+    e.employee_id,
+    e.phone_number,
+    j.job_title,
+    d.department_name,
+    CONCAT(m.first_name, ' ', m.last_name) AS manager_name
+FROM employees e
+JOIN departments d ON e.department_id = d.department_id
+JOIN locations l ON d.location_id = l.location_id
+JOIN jobs j ON e.job_id = j.job_id
+LEFT JOIN employees m ON e.manager_id = m.employee_id
+WHERE l.city = 'Delhi';`,
+                output: "Query OK, 0 rows affected",
+                type: "message",
+                explanation: "Creates a view that joins multiple tables to show comprehensive employee data for Delhi location only."
+            },
+            {
+                id: 39,
+                category: "Views",
+                question: "Find Managers in Finance using the view",
+                query: `SELECT * 
+FROM delhi_employees 
+WHERE job_title = 'Manager' 
+AND department_name = 'Finance';`,
+                output: "Empty set (0.00 sec)",
+                type: "message",
+                explanation: "Queries the view with additional filters. Returns empty because no Delhi employees exist in the dataset."
+            },
+            {
+                id: 40,
+                category: "Views",
+                question: "Check if view update is possible for Smith's phone number",
+                query: `-- Attempt to update through view
+UPDATE delhi_employees 
+SET phone_number = '1112223333' 
+WHERE employee_name LIKE '%Smith%';`,
+                output: "ERROR 1288 (HY000): The target table delhi_employees of the UPDATE is not updatable",
+                type: "error",
+                explanation: "View is not updatable because it contains JOINs, aggregate functions, and calculated columns (CONCAT)."
+            },
+            {
+                id: 41,
+                category: "Advanced",
+                question: "Display details of employees who have no dependents",
+                query: `SELECT e.* 
+FROM employees e
+LEFT JOIN dependents d ON e.employee_id = d.employee_id
+WHERE d.dependent_id IS NULL;`,
+                output: {
+                    headers: ["employee_id", "first_name", "last_name", "email", "phone_number", "hire_date", "job_id", "salary", "manager_id", "department_id"],
+                    rows: [
+                        [106, "Mark", "Brown", "mbrown@example.com", "9998887777", "2024-01-10", "J05", "11000.00", 105, 50],
+                        [109, "Zara", "Ali", "zali@example.com", "3334445555", "2024-02-01", "J01", "9000.00", null, 10],
+                        [110, "Ravi", "Sharma", "rsharma@example.com", "9998887777", "2024-03-15", "J01", "8500.00", null, 20],
+                        [111, "Smith", "David", "dsmith@example.com", "8887776666", "2024-04-01", "J03", null, null, 40]
+                    ]
+                },
+                type: "table",
+                explanation: "LEFT JOIN with IS NULL check is an alternative to NOT IN for finding missing relationships."
+            },
+            {
+                id: 42,
+                category: "Set Operations",
+                question: "Display employees with manager ID 101 or 201 using UNION",
+                query: `SELECT * FROM employees WHERE manager_id = 101
+UNION
+SELECT * FROM employees WHERE manager_id = 201;`,
+                output: {
+                    headers: ["employee_id", "first_name", "last_name", "email", "phone_number", "hire_date", "job_id", "salary", "manager_id", "department_id"],
+                    rows: [
+                        [102, "Jane", "Smith", "jsmith@example.com", "9876543210", "2019-03-10", "J02", "8000.00", 101, 20],
+                        [103, "Alice", "Johnson", "ajohnson@example.com", "5556667777", "2018-11-25", "J03", "15000.00", 101, 30]
+                    ]
+                },
+                type: "table",
+                explanation: "UNION combines results from both queries, removing duplicates (though none exist here)."
+            },
+            {
+                id: 43,
+                category: "Advanced",
+                question: "Display employees who have at least one dependent",
+                query: `SELECT DISTINCT e.* 
+FROM employees e
+JOIN dependents d ON e.employee_id = d.employee_id;`,
+                output: {
+                    headers: ["employee_id", "first_name", "last_name", "email", "phone_number", "hire_date", "job_id", "salary", "manager_id", "department_id"],
+                    rows: [
+                        [101, "John", "Doe", "jdoe@example.com", "1234567890", "2020-01-15", "J01", "12000.00", null, 10],
+                        [102, "Jane", "Smith", "jsmith@example.com", "9876543210", "2019-03-10", "J02", "8000.00", 101, 20],
+                        [103, "Alice", "Johnson", "ajohnson@example.com", "5556667777", "2018-11-25", "J03", "15000.00", 101, 30],
+                        [104, "Robert", "Taylor", "rtaylor@example.com", "8889990000", "2021-07-01", "J04", "11000.00", 102, 40],
+                        [105, "Linda", "Williams", "lwilliams@example.com", "4445556666", "2022-05-12", "J05", "9500.00", 103, 50]
+                    ]
+                },
+                type: "table",
+                explanation: "JOIN with DISTINCT ensures each employee appears once even if they have multiple dependents."
+            }
+        ];
+
+        let currentQuestion = null;
+
+        function renderQuestionList() {
+            const list = document.getElementById('questionList');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            list.innerHTML = '';
+            
+            let currentCategory = '';
+            
+            questions.forEach((q, index) => {
+                if (searchTerm && !q.question.toLowerCase().includes(searchTerm) && !q.category.toLowerCase().includes(searchTerm)) {
+                    return;
+                }
+                
+                if (q.category !== currentCategory) {
+                    currentCategory = q.category;
+                    const categoryDiv = document.createElement('div');
+                    categoryDiv.className = 'px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider bg-slate-800/30 sticky top-0';
+                    categoryDiv.textContent = currentCategory;
+                    list.appendChild(categoryDiv);
+                }
+                
+                const card = document.createElement('div');
+                card.className = `question-card p-4 border-b border-slate-700/50 ${currentQuestion?.id === q.id ? 'active' : ''}`;
+                card.onclick = () => selectQuestion(q);
+                
+                card.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-700 text-xs flex items-center justify-center text-slate-300 font-mono">${q.id}</span>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm text-slate-200 leading-snug line-clamp-2">${q.question}</p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-xs px-2 py-0.5 rounded-full bg-slate-700/50 text-slate-400">${q.type === 'table' ? 'SELECT' : 'DDL/DML'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                list.appendChild(card);
+            });
+        }
+
+        function selectQuestion(q) {
+            currentQuestion = q;
+            renderQuestionList();
+            
+            // Update query display
+            const queryDisplay = document.getElementById('queryDisplay');
+            queryDisplay.textContent = q.query;
+            queryDisplay.className = 'language-sql font-mono text-sm leading-relaxed';
+            hljs.highlightElement(queryDisplay);
+            
+            // Update explanation
+            const explanationBox = document.getElementById('explanationBox');
+            const explanationText = document.getElementById('explanationText');
+            explanationText.textContent = q.explanation;
+            explanationBox.style.display = 'block';
+            
+            // Update output
+            const outputContainer = document.getElementById('outputContainer');
+            const rowCount = document.getElementById('rowCount');
+            
+            if (q.type === 'message' || q.type === 'error') {
+                rowCount.textContent = '';
+                const isError = q.type === 'error';
+                outputContainer.innerHTML = `
+                    <div class="animate-fade-in">
+                        <div class="flex items-center gap-3 p-4 rounded-lg ${isError ? 'bg-red-500/10 border border-red-500/30' : 'bg-green-500/10 border border-green-500/30'}">
+                            <svg class="w-5 h-5 ${isError ? 'text-red-400' : 'text-green-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                ${isError 
+                                    ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>'
+                                    : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>'
+                                }
+                            </svg>
+                            <span class="${isError ? 'text-red-300' : 'text-green-300'} font-mono text-sm">${q.output}</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                const rows = q.output.rows;
+                rowCount.textContent = `${rows.length} row${rows.length !== 1 ? 's' : ''}`;
+                
+                let tableHTML = `
+                    <div class="animate-fade-in overflow-x-auto">
+                        <table class="output-table w-full text-sm text-slate-300">
+                            <thead>
+                                <tr>
+                                    ${q.output.headers.map(h => `<th class="sticky top-0">${h}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                rows.forEach(row => {
+                    tableHTML += '<tr>' + row.map(cell => `<td class="font-mono">${cell === null ? '<span class="text-slate-500 italic">NULL</span>' : cell}</td>`).join('') + '</tr>';
+                });
+                
+                tableHTML += '</tbody></table></div>';
+                outputContainer.innerHTML = tableHTML;
+            }
+        }
+
+        function copyQuery() {
+            if (!currentQuestion) return;
+            navigator.clipboard.writeText(currentQuestion.query);
+            
+            // Visual feedback
+            const btn = event.target.closest('button');
+            const original = btn.innerHTML;
+            btn.innerHTML = '<span class="text-green-400">Copied!</span>';
+            setTimeout(() => btn.innerHTML = original, 2000);
+        }
+
+        function downloadOutput() {
+            if (!currentQuestion || !currentQuestion.output) return;
+            
+            let content = '';
+            if (currentQuestion.type === 'table') {
+                content = currentQuestion.output.headers.join(',') + '\n';
+                currentQuestion.output.rows.forEach(row => {
+                    content += row.join(',') + '\n';
+                });
+            } else {
+                content = currentQuestion.output;
+            }
+            
+            const blob = new Blob([content], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `question_${currentQuestion.id}_output.csv`;
+            a.click();
+        }
+
+        function toggleTheme() {
+            // Theme toggle functionality could be expanded
+            document.body.classList.toggle('light-theme');
+        }
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', renderQuestionList);
+
+        // Initialize
+        renderQuestionList();
+        
+        // Select first question by default
+        if (questions.length > 0) {
+            selectQuestion(questions[0]);
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (!currentQuestion) return;
+            
+            const currentIndex = questions.findIndex(q => q.id === currentQuestion.id);
+            
+            if (e.key === 'ArrowDown' && currentIndex < questions.length - 1) {
+                selectQuestion(questions[currentIndex + 1]);
+                document.querySelector('.question-card.active')?.scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'ArrowUp' && currentIndex > 0) {
+                selectQuestion(questions[currentIndex - 1]);
+                document.querySelector('.question-card.active')?.scrollIntoView({ block: 'nearest' });
+            }
+        });
+    </script>
+</body>
+</html>
