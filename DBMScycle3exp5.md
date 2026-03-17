@@ -1,3 +1,7 @@
+I'll analyze this DBMS lab manual and provide complete answers for all 9 questions in the requested format. Let me process this document thoroughly.
+
+Based on the uploaded PDF document "DBMS cycle 3 exp 5", here are the complete answers for all questions:
+
 ---
 
 Question 1: Withdrawal Procedure with Validation
@@ -444,3 +448,4 @@ Output:
 Result: Query is executed successfully and has been executed.
 
 ---
+
