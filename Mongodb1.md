@@ -622,6 +622,158 @@ Output:
 
 ---
 
+---
+
+Exercise 3: Inventory Management System (Continued)
+
+---
+
 16. Display documents from the products collection whose price is neither 599 or 699
 
-Use `$nin` (not in) operator to exclude documents with specific field values. This returns products priced outside the specifie
+The `$nin` (not in) operator selects documents where the field value does not match any value in the specified array. This query excludes products priced at 599 or 699, returning only those with different prices.
+
+```javascript
+db.products.find({price:{$nin:[699,799]}},{name:1,price:1})
+```
+
+Output:
+
+```
+{ "_id" : 2, "name" : "xTablet", "price" : 899 }
+{ "_id" : 3, "name" : "SmartTablet", "price" : 899 }
+{ "_id" : 5, "name" : "SmartPhone", "price" : 599 }
+```
+
+---
+
+17. Display documents where the color array doesn't have an element that is either "black" or "white"
+
+When applied to arrays, `$nin` matches documents where none of the array elements exist in the specified array. This finds products that are not available in black or white colors.
+
+```javascript
+db.products.find({color:{$nin:["black","white"]}},{name:1,color:1})
+```
+
+Output:
+
+```
+{ "_id" : 3, "name" : "SmartTablet", "color" : [ "blue" ] }
+```
+
+---
+
+18. Display all documents in the products collection where the value in the price field is equal to 899 and the value in the color field is either "white" or "black"
+
+The `$and` logical operator performs a conjunction of multiple query conditions. Both conditions must be satisfied: price must equal 899 AND color array must contain either "white" or "black".
+
+```javascript
+db.products.find({$and:[{price:899},{color:{$in:["white","black"]}}]},{name:1,price:1,color:1})
+```
+
+Output:
+
+```
+{ "_id" : 2, "name" : "xTablet", "price" : 899, "color" : [ "white", "black", "purple" ] }
+```
+
+---
+
+19. Select all documents where the price is less than 699 or greater than 799
+
+The `$or` logical operator performs a disjunction of conditions, returning documents where at least one condition is true. This query finds products priced below 699 OR above 799, effectively excluding the 699-799 range.
+
+```javascript
+db.products.find({$or:[{price:{$lt:699}},{price:{$gt:799}}]},{name:1,price:1})
+```
+
+Output:
+
+```
+{ "_id" : 2, "name" : "xTablet", "price" : 899 }
+{ "_id" : 3, "name" : "SmartTablet", "price" : 899 }
+{ "_id" : 5, "name" : "SmartPhone", "price" : 599 }
+```
+
+---
+
+Sorting Documents
+
+Use the `sort()` method to sort documents by one or more fields. Specify `{field:1}` for ascending order and `{field:-1}` for descending order. Use dot notation `{"embeddedDoc.field":1}` to sort by fields in embedded documents.
+
+---
+
+20. Sorts the products by the values in the ram field in the spec embedded documents. It includes the id, name, and spec fields in the matching documents.
+
+To sort by nested document fields, use dot notation (`spec.ram`) in the sort specification. This arranges products in ascending order of RAM capacity. The projection limits output to essential fields including the nested spec document.
+
+```javascript
+db.products.find({},{name:1,spec:1}).sort({"spec.ram":1})
+```
+
+Output:
+
+```
+{ "_id" : 1, "name" : "xPhone", "spec" : { "ram" : 4, "screen" : 6.5, "cpu" : 2.66 } }
+{ "_id" : 5, "name" : "SmartPhone", "spec" : { "ram" : 4, "screen" : 9.7, "cpu" : 1.66 } }
+{ "_id" : 4, "name" : "SmartPad", "spec" : { "ram" : 8, "screen" : 9.7, "cpu" : 1.66 } }
+{ "_id" : 3, "name" : "SmartTablet", "spec" : { "ram" : 12, "screen" : 9.7, "cpu" : 3.66 } }
+{ "_id" : 2, "name" : "xTablet", "spec" : { "ram" : 16, "screen" : 9.5, "cpu" : 3.66 } }
+```
+
+---
+
+21. Sorts the products by the values in the releaseDate field in descending order.
+
+Sorting by date in descending order (`-1`) displays the most recently released products first. The `$exists:1` filter ensures only documents containing the releaseDate field are considered, preventing errors with missing fields.
+
+```javascript
+db.products.find({releaseDate:{$exists:1}},{name:1,releaseDate:1}).sort({releaseDate:-1})
+```
+
+Output:
+
+```
+{ "_id" : 5, "name" : "SmartPhone", "releaseDate" : ISODate("2022-09-14T00:00:00Z") }
+{ "_id" : 4, "name" : "SmartPad", "releaseDate" : ISODate("2020-05-14T00:00:00Z") }
+{ "_id" : 3, "name" : "SmartTablet", "releaseDate" : ISODate("2015-01-14T00:00:00Z") }
+{ "_id" : 2, "name" : "xTablet", "releaseDate" : ISODate("2011-09-01T00:00:00Z") }
+{ "_id" : 1, "name" : "xPhone", "releaseDate" : ISODate("2011-05-14T00:00:00Z") }
+```
+
+---
+
+22. Sort the products by name and price in ascending order. It selects only documents where the price field exists and includes the id, name, and price fields in the matching documents.
+
+Multi-field sorting applies sort keys in sequence: first by price, then by name for documents with equal prices. Both use ascending order (`1`). The `$exists` operator filters out documents lacking a price field.
+
+```javascript
+db.products.find({'price':{$exists:1}},{name:1,price:1}).sort({price:1,name:1})
+```
+
+Output:
+
+```
+{ "_id" : 5, "name" : "SmartPhone", "price" : 599 }
+{ "_id" : 4, "name" : "SmartPad", "price" : 699 }
+{ "_id" : 1, "name" : "xPhone", "price" : 799 }
+{ "_id" : 3, "name" : "SmartTablet", "price" : 899 }
+{ "_id" : 2, "name" : "xTablet", "price" : 899 }
+```
+
+---
+
+23. Get the most expensive product in the products collection. It includes the id, name, and price fields in the returned document.
+
+To find the maximum value, sort by price in descending order (`-1`) and limit results to 1 document. This efficiently retrieves the top result without processing the entire collection.
+
+```javascript
+db.products.find({},{name:1,price:1}).sort({price:-1,name:1}).limit(1)
+```
+
+Output:
+
+```
+{ "_id" : 3, "name" : "SmartTablet", "price" : 899 }
+```
+
+---
